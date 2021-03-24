@@ -3,10 +3,16 @@ import { app } from '../app';
 
 import createConnection from '../database';
 
-describe('Surveys', async () => {
+describe('Surveys', () => {
     beforeAll(async () => { // roda as migrations
         const connection = await createConnection();
         await connection.runMigrations();
+    });
+
+    afterAll(async () => {
+        const connection = await createConnection();
+        await connection.dropDatabase(); // Verificar pois a tabela não está sendo excluida
+        await connection.close();
     });
 
     it("Should be able to create a new survey", async () => {
