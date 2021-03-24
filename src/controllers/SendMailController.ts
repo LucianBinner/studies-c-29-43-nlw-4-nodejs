@@ -30,24 +30,29 @@ class SendMailController {
             });
         }
 
+        const npsPath = resolve(__dirname, "..", "views", "emails", "npsMail.hbs");
+
+        //  where: [{ user_id: user.id }, { value: null }], conditional 'or'
+        //  where: [{ user_id: user.id, value: null }], conditional 'and'
+        const surveyUserAlreadyExists = await surveysUsersRepository.findOne({
+            where: [{ user_id: user.id, survey_id: survey.id }],
+            relations: ["user", "survey"]
+        });
+
         const variables = {
             name: user.name,
             title: survey.title,
             description: survey.description,
-            user_id: user.id,
+            id: "",
             link: process.env.URL_MAIL
         }
 
-        const npsPath = resolve(__dirname, "..", "views", "emails", "npsMail.hbs");
-
-        const surveyUserAlreadyExists = await surveysUsersRepository.findOne({
-            where: [{ user_id: user.id }, { value: null }],
-            relations: ["user", "survey"]
-        });
-
-        if(surveyUserAlreadyExists) {
+        if(surveyUserAlreadyExists !== undefined && surveyUserAlreadyExists.value === null) {
+            variables.id = surveyUserAlreadyExists.id
             await sendMailService.execute(email, survey.title, variables, npsPath);
             return res.json(surveyUserAlreadyExists);
+        } else if (surveyUserAlreadyExists !== undefined && surveyUserAlreadyExists.value !== null) {
+            return res.json({message: "Completed survey", surveyUserAlreadyExists});
         }
 
         // Salvando as informações no banco de dados surveyUser
@@ -56,12 +61,10 @@ class SendMailController {
             survey_id,
         });
 
-
         await surveysUsersRepository.save(surveyUser);
 
         // Enviando e-mail para o usuário
-        
-
+        variables.id = surveyUser.id
         await sendMailService.execute(email, survey.title, variables, npsPath);
 
         return res.json(surveyUser);
